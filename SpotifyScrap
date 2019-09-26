@@ -1,0 +1,151 @@
+
+import spotipy
+import spotipy.util as util
+import pandas as pd
+import numpy as np
+import timeit
+import json
+from json.decoder import JSONDecodeError
+token = util.prompt_for_user_token(
+        username="123106730",
+        scope="user-top-read user-read-private user-read-recently-played playlist-read-private user-library-modify",
+        client_id="xxxxxxxxxxxxxxxxxxxe13dfd2578dcb",
+        client_secret="2xxxxxxxxxxxxxxxxxxxxx5bb41f784f4",
+        redirect_uri= "https://www.google.com")
+
+sp = spotipy.Spotify(auth=token)
+
+#create lists for data to later create dataframe 
+artist_name = []
+track_name = []
+popularity = []
+track_id = []
+
+#get user top tracks for all ranges 
+#there is a 20 song limit/request through Spotify API so a nested loop request is necessary
+for i in range(0,1000,20):
+    tops = sp.current_user_top_tracks(limit=20, offset=i, time_range='long_term')
+    for i, t in enumerate(tops['items']):
+        artist_name.append(t['artists'][0]['name'])
+        track_name.append(t['name'])
+        track_id.append(t['id'])
+        popularity.append(t['popularity'])
+
+for i in range(0,1000,20):
+    tops = sp.current_user_top_tracks(limit=20, offset=i, time_range='medium_term')
+    for i, t in enumerate(tops['items']):
+        artist_name.append(t['artists'][0]['name'])
+        track_name.append(t['name'])
+        track_id.append(t['id'])
+        popularity.append(t['popularity'])
+
+for i in range(0,1000,20):
+    tops = sp.current_user_top_tracks(limit=20, offset=i, time_range='short_term')
+    for i, t in enumerate(tops['items']):
+        artist_name.append(t['artists'][0]['name'])
+        track_name.append(t['name'])
+        track_id.append(t['id'])
+        popularity.append(t['popularity'])
+
+"""      
+
+
+# Ex: of loop for playlist and songs that are public on Spotify for a given year...
+#Tracks of 2018
+for i in range(0,10000,50):
+    track_results = sp.search(q='year:2018', type='track', limit=50,offset=i)
+    for i, t in enumerate(track_results['tracks']['items']):
+        artist_name.append(t['artists'][0]['name'])
+        track_name.append(t['name'])
+        track_id.append(t['id'])
+        popularity.append(t['topSPop18'])
+
+#Tracks of 2019
+for i in range(0,10000,50):
+    track_results = sp.search(q='year:2019', type='track', limit=50,offset=i)
+    for i, t in enumerate(track_results['tracks']['items']):
+        artist_name.append(t['artists'][0]['name'])
+        track_name.append(t['name'])
+        track_id.append(t['id'])
+        popularity.append(t['topSPop19'])
+
+# How to get Users Saved Tracks... slight difference in code as the respsonse variable formatted layered differently
+for i in range(0,1000,20):
+    track_personal =  sp.current_user_saved_tracks(limit=20, offset=i)
+    for i, t in enumerate(track_personal['items']):
+        artist_name.append(t['track']['artists'][0]['name'])
+        track_name.append(t['track']['name'])
+        track_id.append(t['track']['id'])
+        popularity.append(t['track']['myLPop'])
+"""
+print('number of elements in the track_id list:', len(track_id))
+
+#crate a dataframe with pandas
+df_tracks = pd.DataFrame({'artist_name':artist_name,'track_name':track_name,'track_id':track_id,'popularity':popularity})
+print(df_tracks.shape)
+df_tracks.head()
+
+
+df_tracks.info()
+# Create a new varaible to check for duplicates
+grouped = df_tracks.groupby(['artist_name','track_name'], as_index=True).size()
+grouped[grouped > 1].count()
+
+df_tracks.drop_duplicates(subset=['artist_name','track_name'], inplace=True)
+
+# doing the same grouping as before to verify the solution
+grouped_after_dropping = df_tracks.groupby(['artist_name','track_name'], as_index=True).size()
+grouped_after_dropping[grouped_after_dropping > 1].count()
+df_tracks[df_tracks.duplicated(subset=['artist_name','track_name'],keep=False)].count()
+
+df_tracks.shape
+
+
+
+# empty list, batchsize and the counter, None results, for missing data when looking for audio features
+# the batch is being used to match the track to audio results and make the 100 limit request
+rows = []
+batchsize = 100
+None_counter = 0
+
+for i in range(0,len(df_tracks['track_id']),batchsize):
+    batch = df_tracks['track_id'][i:i+batchsize]
+    feature_results = sp.audio_features(batch)
+    for i, t in enumerate(feature_results):
+        if t == None:
+            None_counter = None_counter + 1
+        else:
+            rows.append(t)
+            
+print('Number of tracks where no audio features were available:',None_counter)
+print('number of elements in the track_id list:', len(rows))
+
+#now take the rows of audiofeature, reorientate the row varibles to columns and then inspect the DF before combination
+df_audio_features = pd.DataFrame.from_dict(rows,orient='columns')
+print("Shape of the dataset:", df_audio_features.shape)
+df_audio_features.head()
+df_audio_features.info()
+
+# drop any unneccary columns for your use
+columns_to_drop = ['analysis_url','track_href','type','uri']
+df_audio_features.drop(columns_to_drop, axis=1,inplace=True)
+
+#fix naming to combine as of 9/26/19 id needs to be be changed to track_id to match the tracks from earlier
+df_audio_features.rename(columns={'id': 'track_id'}, inplace=True)
+df_audio_features.shape
+
+# merge both dataframes
+# the 'inner' method will make sure that we only keep track IDs present in both datasets
+df = pd.merge(df_tracks,df_audio_features,on='track_id',how='inner')
+print("Shape of the dataset:", df_audio_features.shape)
+df.head()
+df.info()
+
+# drop any duplicates
+df[df.duplicated(subset=['artist_name','track_name'],keep=False)]
+df= df.loc[(df!=0).any(axis=1)]
+#check to make sure its the same length as before tracks
+print('number of elements in the track_id list:', len(track_id))
+#create you csv
+df.to_csv('SpotifyNDTop.csv')
+#df.to_csv('SpotifyNDlib.csv')
