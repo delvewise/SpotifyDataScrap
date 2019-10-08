@@ -1,0 +1,240 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Oct  8 11:51:58 2019
+
+@author: nickd
+"""
+
+# IMPORT PACKAGES
+import pandas as pd 
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import datetime
+
+# GETTING PLAYLISTS FROM READ_CSV
+lib = pd.read_csv('x')
+mytop = pd.read_csv('xv')
+#tophits = pd.read_csv('xsv')
+
+# INSPECTING THE DATAFRAMES
+lib.info()
+mytop.info()
+lib.head()
+mytop.head()
+#lib = lib.dropna().reset_index(drop=True)
+#mytop = mytop.dropna().reset_index(drop=True)
+#tophits = tophits.dropna().reset_index(drop=True)
+
+
+# GET DESCRIBE VALUES
+d1 = lib.describe()
+d2 = mytop.describe()
+#d3 = tophits.describe()
+
+# GET CURRENT SIZE
+fig_size = plt.rcParams['figure.figsize']
+ 
+# SET WIDTH AND HEIGHT
+fig_size[0] = 12
+fig_size[1] = 9
+plt.rcParams['figure.figsize'] = fig_size
+
+# GROUPED BAR PLOTS
+avgs = pd.concat([d1.iloc[1,:14].rename('lib'), 
+                  d2.iloc[1,:14].rename('mytop')], axis=1).plot(kind='bar', 
+                                                                 width=.75, 
+                                                                 fontsize=14,
+                                                                 yerr=[d1.iloc[1,:14], 
+                                                                       d2.iloc[1,:14]],
+                                                                 color=['b','r','y'])
+
+# SET TITLE AND LABELS
+avgs.set_title('Mean Value of Audio Features', fontsize=14)
+avgs.set_xlabel('Audio Feature', fontsize=14)
+avgs.set_ylabel('Mean Value with Standard Deviation', fontsize=14)
+
+plt.show()
+
+
+# USE SEABORN'S DISTRIBUTION PLOT
+plt.subplot(421)
+sns.distplot(lib.tempo, label='lib')
+sns.distplot(mytop.tempo, color='r', label='mytop')
+plt.xlabel('tempo')
+plt.legend()
+
+plt.subplot(422)
+sns.distplot(lib.energy)
+sns.distplot(mytop.energy, color='r')
+plt.xlabel('energy')
+
+plt.subplot(423)
+sns.distplot(lib.danceability)
+sns.distplot(mytop.danceability, color='r')
+plt.xlabel('danceability')
+
+plt.subplot(424)
+sns.distplot(lib.loudness)
+sns.distplot(mytop.loudness, color='r')
+plt.xlabel('loudness')
+
+plt.subplot(425)
+sns.distplot(lib.valence)
+sns.distplot(mytop.valence, color='r')
+plt.xlabel('valence')
+
+plt.subplot(426)
+sns.distplot(lib.acousticness)
+sns.distplot(mytop.acousticness, color='r')
+plt.xlabel('acoustic')
+
+plt.subplot(427)
+sns.distplot(lib.popularity)
+sns.distplot(mytop.popularity, color='r')
+plt.xlabel('popularity')
+
+plt.subplot(428)
+sns.distplot(lib.key)
+sns.distplot(mytop.key, color='r')
+plt.xlabel('key')
+
+plt.tight_layout()
+plt.show()
+
+plt.subplot(421)
+sns.distplot(lib.tempo, label='lib')
+sns.distplot(tophits.tempo, color='y', label='tophits')
+plt.xlabel('tempo')
+plt.legend()
+
+plt.subplot(422)
+sns.distplot(lib.energy)
+sns.distplot(tophits.energy, color='y')
+plt.xlabel('energy')
+
+plt.subplot(423)
+sns.distplot(lib.danceability)
+sns.distplot(tophits.danceability, color='y')
+plt.xlabel('danceability')
+
+plt.subplot(424)
+sns.distplot(lib.loudness)
+sns.distplot(tophits.loudness, color='y')
+plt.xlabel('loudness')
+
+plt.subplot(425)
+sns.distplot(lib.valence)
+sns.distplot(tophits.valence, color='y')
+plt.xlabel('valence')
+
+plt.subplot(426)
+sns.distplot(lib.acousticness)
+sns.distplot(tophits.acousticness, color='y')
+plt.xlabel('acousticness')
+
+plt.subplot(427)
+sns.distplot(lib.popularity)
+sns.distplot(tophits.popularity, color='y')
+plt.xlabel('popularity')
+
+plt.subplot(428)
+sns.distplot(lib.key)
+sns.distplot(tophits.key, color='y')
+plt.xlabel('key')
+
+plt.tight_layout()
+plt.show()
+
+
+
+# IMPORT PACKAGES
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import (accuracy_score, precision_score, recall_score, 
+                             f1_score, classification_report, confusion_matrix,
+                             roc_auc_score, roc_curve, matthews_corrcoef)
+from sklearn.utils import resample
+
+# ADD TARGET COLUMN, 1 FOR lib SONGS, 0 FOR mytop SONGS
+lib['TARGET'] = 1
+mytop['TARGET'] = 0
+
+# COMBINE lib and mytop PLAYLIST
+combined = pd.concat([lib,mytop], ignore_index=True)
+
+print('lib Count:', len(lib))
+print('mytop Count:', len(mytop))
+
+
+# UPSAMPLING MINORITY CLASS (mytop)
+
+# SEPARATE MAJORITY AND MINORITY CLASSES
+df_majority = combined[combined.TARGET==1]
+df_minority = combined[combined.TARGET==0]
+ 
+# UPSAMPLE MINORITY CLASS
+df_minority_up = resample(df_minority, 
+                                 replace=True,     # sample with replacement
+                                 n_samples=620,    # to match majority class
+                                 random_state=123) # reproducible results
+ 
+# COMBINED MAJORITY CLASS WITH UPSAMPLED MINORITY CLASS
+df_upsampled = pd.concat([df_majority, df_minority_up])
+ 
+# Display new class counts
+df_upsampled.TARGET.value_counts()
+
+# FEATURES & TARGET VARIABLE
+features = df_upsampled[['tempo','energy','danceability','loudness','valence','acousticness','popularity']]
+target = df_upsampled['TARGET']
+
+# TRAINING / TESTING DATA
+X_train, X_test, y_train, y_test = train_test_split(features, target)
+print('Features Training Set:', X_train.shape, 'Features Testing Set:', X_test.shape)
+print('Target Training Set:', y_train.shape, 'Target Testing Set:', y_test.shape)
+
+# GRID SEARCH
+from sklearn.model_selection import GridSearchCV
+param_grid = {'n_neighbors': np.arange(1,50)}
+knn = KNeighborsClassifier()
+knn_cv = GridSearchCV(knn, param_grid, cv=5)
+knn_cv.fit(features, target)
+
+print(knn_cv.best_params_)
+print(knn_cv.best_score_)
+
+# SETUP K-NN CLASSIFIER K=1
+knn = KNeighborsClassifier(n_neighbors=1)
+
+# FIT CLASSIFIER W/ K NEIGHBORS TO TRAINING DATA
+knn.fit(X_train, y_train)
+y_pred = knn.predict(X_test)
+
+# ROC CURVE
+y_pred_prob = knn.predict_proba(X_test)[:,1]
+fpr, tpr, thresholds = roc_curve(y_test, y_pred_prob)
+plt.plot([0, 1], [0, 1], 'k--')
+plt.plot(fpr, tpr)
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('ROC Curve')
+plt.show()
+
+
+
+# METRICS
+print('Accuracy Score:', accuracy_score(y_test, y_pred))
+y_pred_prob = knn.predict_proba(X_test)[:,1]
+print('AUROC Score:',roc_auc_score(y_test, y_pred_prob))
+print('MCC:', matthews_corrcoef(y_test, y_pred))
+print('\n Clasification Report:\n', classification_report(y_test, y_pred))
+cm =  confusion_matrix(y_test, y_pred)
+print('\n Confusion Matrix:\n', cm)
+
+from sklearn.linear_model import LogisticRegression
+
+logreg = LogisticRegression()
+logreg.fit(X_train, y_train)
+logreg_y_pred = logreg.predict(X_test)
