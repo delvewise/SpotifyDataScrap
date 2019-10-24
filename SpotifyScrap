@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import timeit
 import json
-from json.decoder import JSONDecodeError
+
 token = util.prompt_for_user_token(
         username="123106730",
         scope="user-top-read user-read-private user-read-recently-played playlist-read-private user-library-modify",
