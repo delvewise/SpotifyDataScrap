@@ -78,15 +78,36 @@ for i in range(0,1000,20):
         track_id.append(t['track']['id'])
         popularity.append(t['track']['myLPop'])
 """
+#Number of songs scrapped for user
 print('number of elements in the track_id list:', len(track_id))
 
 #crate a dataframe with pandas
 df_tracks = pd.DataFrame({'artist_name':artist_name,'track_name':track_name,'track_id':track_id,'popularity':popularity})
 print(df_tracks.shape)
 df_tracks.head()
+Out[17]: 
+     artist_name  ... popularity
+0    Tame Impala  ...         86
+1   Jack Johnson  ...         73
+2  Beach Fossils  ...         24
+3    Tame Impala  ...         63
+4       Wake Owl  ...          0
+
+[5 rows x 4 columns]
 
 
 df_tracks.info()
+OUT:
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 180 entries, 0 to 179
+Data columns (total 4 columns):
+artist_name    180 non-null object
+track_name     180 non-null object
+track_id       180 non-null object
+popularity     180 non-null int64
+dtypes: int64(1), object(3)
+memory usage: 5.7+ KB
+
 # Create a new varaible to check for duplicates
 grouped = df_tracks.groupby(['artist_name','track_name'], as_index=True).size()
 grouped[grouped > 1].count()
